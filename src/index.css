@@ -5,41 +5,45 @@
 @layer base {
   * { -webkit-tap-highlight-color: transparent; }
   body {
-    @apply bg-slate-950 text-slate-100 font-sans antialiased;
+    @apply bg-black text-slate-100 font-sans antialiased;
     padding-bottom: env(safe-area-inset-bottom);
   }
   input, select, textarea {
-    @apply bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 w-full
-           focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500
-           placeholder-slate-500 text-base;
+    @apply bg-white/[0.06] border border-white/[0.10] rounded-xl px-4 py-3 text-slate-100 w-full
+           focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50
+           placeholder-slate-600 text-base transition-colors;
   }
-  select option { @apply bg-slate-800; }
+  select option { @apply bg-slate-900; }
 }
 
 @layer components {
-  .card { @apply bg-slate-900 rounded-2xl p-4 border border-slate-800; }
+  .card {
+    @apply bg-white/[0.03] rounded-2xl p-4 border border-white/[0.07];
+  }
   .btn-primary {
-    @apply bg-brand-500 hover:bg-brand-600 active:bg-brand-700
-           text-white font-semibold py-3 px-6 rounded-xl transition-colors
-           disabled:opacity-50 disabled:cursor-not-allowed w-full text-base;
+    @apply bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600
+           text-black font-black py-3.5 px-6 rounded-xl transition-all
+           disabled:opacity-40 disabled:cursor-not-allowed w-full text-base
+           tracking-wide active:scale-[0.98];
   }
   .btn-secondary {
-    @apply bg-slate-800 hover:bg-slate-700 active:bg-slate-600
-           text-slate-200 font-semibold py-3 px-6 rounded-xl transition-colors w-full text-base;
+    @apply bg-white/[0.06] hover:bg-white/[0.10] active:bg-white/[0.04]
+           text-slate-200 font-semibold py-3 px-6 rounded-xl transition-all w-full text-base
+           border border-white/[0.08] active:scale-[0.98];
   }
   .btn-ghost {
-    @apply text-slate-400 hover:text-slate-200 py-2 px-4 rounded-xl transition-colors text-sm;
+    @apply text-slate-500 hover:text-slate-200 py-2 px-4 rounded-xl transition-colors text-sm;
   }
-  .label { @apply block text-sm font-medium text-slate-400 mb-1.5; }
-  .section-title { @apply text-lg font-bold text-slate-100 mb-4; }
-  .macro-pill {
-    @apply text-xs font-semibold px-2.5 py-1 rounded-full;
-  }
-  .tab-active { @apply text-brand-400 border-brand-400; }
-  .tab-inactive { @apply text-slate-500 border-transparent; }
+  .label { @apply block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider; }
+  .section-title { @apply text-xl font-black text-white mb-4 tracking-tight; }
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { @apply bg-transparent; }
-::-webkit-scrollbar-thumb { @apply bg-slate-700 rounded-full; }
+::-webkit-scrollbar-thumb { @apply bg-slate-800 rounded-full; }
+
+/* Glow effect utility */
+.glow-green {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+}

@@ -1,29 +1,53 @@
 import { getSettings } from './storage'
+import { getFoodPreferencesPrompt } from './foodPreferences'
 
 const API_URL = 'https://api.anthropic.com/v1/messages'
 
-export async function generateRecipes({ query, calories, preferences, mealType }) {
+async function callClaude(prompt, maxTokens = 2048) {
   const settings = getSettings()
   const apiKey = settings.claudeApiKey
   if (!apiKey) throw new Error('NO_API_KEY')
 
+  const response = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err?.error?.message || `API error ${response.status}`)
+  }
+
+  const data = await response.json()
+  const text = data.content[0].text.trim()
+
+  // Extract JSON even if wrapped in markdown code blocks
+  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || text.match(/(\[[\s\S]*\]|\{[\s\S]*\})/)
+  return JSON.parse(jsonMatch ? jsonMatch[1] || jsonMatch[0] : text)
+}
+
+// Generate 3 recipe options for a specific meal edit
+export async function generateRecipes({ query, calories, preferences, mealType }) {
   const prefStr = preferences?.length ? `Dietary preferences: ${preferences.join(', ')}.` : ''
-  const prompt = `Generate 3 healthy recipe options for someone who wants to eat "${query}" for ${mealType}.
+  const prompt = `Generate 3 healthy recipe options for someone who wants "${query}" for ${mealType}.
 ${prefStr}
-Target calories: approximately ${calories} kcal.
+Target calories: ~${calories} kcal.
 
-For each recipe return:
-- Name
-- Brief description (1 sentence)
-- Ingredients list (brief)
-- Calories (approx)
-- Protein (g), Carbs (g), Fat (g), Fiber (g)
-
-Format as JSON array:
+Return ONLY a JSON array:
 [
   {
     "name": "...",
-    "description": "...",
+    "description": "one sentence",
     "ingredients": ["...", "..."],
     "calories": 000,
     "protein": 00,
@@ -31,98 +55,78 @@ Format as JSON array:
     "fat": 00,
     "fiber": 0
   }
-]
+]`
 
-Return ONLY the JSON array, no other text.`
-
-  const response = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  })
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}))
-    throw new Error(err?.error?.message || `API error ${response.status}`)
-  }
-
-  const data = await response.json()
-  const text = data.content[0].text.trim()
-  return JSON.parse(text)
+  return callClaude(prompt, 1024)
 }
 
+// Generate full weekly plan with 2 options per meal
 export async function generateWeeklyPlan({ profile, targets, preferences }) {
-  const settings = getSettings()
-  const apiKey = settings.claudeApiKey
-  if (!apiKey) throw new Error('NO_API_KEY')
-
-  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-  const meals = ['preBreakfast', 'breakfast', 'postBreakfast', 'lunch', 'evening', 'dinner']
-  const mealLabels = {
-    preBreakfast: 'Pre-breakfast (light, ~6-7am)',
-    breakfast: 'Breakfast (~8-9am)',
-    postBreakfast: 'Post-breakfast snack (~11am)',
-    lunch: 'Lunch (~1pm)',
-    evening: 'Evening snack (~5-6pm)',
-    dinner: 'Dinner (~8-9pm)'
-  }
-
+  const foodPrefs = getFoodPreferencesPrompt()
   const prefStr = preferences?.length ? `Dietary preferences: ${preferences.join(', ')}.` : ''
-  const prompt = `Create a healthy 7-day meal plan for someone with these goals:
+
+  const prompt = `Create a healthy 7-day meal plan with TWO options per meal slot.
+
+Profile:
 - Daily calorie target: ${targets.calories} kcal
 - Protein: ${targets.protein}g, Carbs: ${targets.carbs}g, Fat: ${targets.fat}g
 - Goal: ${profile.goal}
 ${prefStr}
 - Health conditions: ${profile.healthConditions?.join(', ') || 'none'}
 
-Create a variety of healthy Indian/international meals. Keep it practical and realistic.
+${foodPrefs}
 
-Return a JSON object with this exact structure:
+Return a JSON object with this EXACT structure (two options per meal):
 {
   "monday": {
-    "preBreakfast": { "dish": "...", "calories": 00, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0 },
-    "breakfast": { ... },
-    "postBreakfast": { ... },
-    "lunch": { ... },
-    "evening": { ... },
-    "dinner": { ... }
+    "preBreakfast": {
+      "optionA": { "dish": "...", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0 },
+      "optionB": { "dish": "...", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0 },
+      "selected": "A"
+    },
+    "breakfast": { "optionA": {...}, "optionB": {...}, "selected": "A" },
+    "postBreakfast": { "optionA": {...}, "optionB": {...}, "selected": "A" },
+    "lunch": { "optionA": {...}, "optionB": {...}, "selected": "A" },
+    "evening": { "optionA": {...}, "optionB": {...}, "selected": "A" },
+    "dinner": { "optionA": {...}, "optionB": {...}, "selected": "A" }
   },
   "tuesday": { ... },
-  ... (all 7 days)
+  "wednesday": { ... },
+  "thursday": { ... },
+  "friday": { ... },
+  "saturday": { ... },
+  "sunday": { ... }
 }
 
 Return ONLY the JSON object, no other text.`
 
-  const response = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  })
+  return callClaude(prompt, 6000)
+}
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}))
-    throw new Error(err?.error?.message || `API error ${response.status}`)
+// Search for a recipe matching user's query, biased toward their preferences
+export async function searchRecipe({ query, mealType, calories, preferences }) {
+  const foodPrefs = getFoodPreferencesPrompt()
+  const prefStr = preferences?.length ? `Dietary preferences: ${preferences.join(', ')}.` : ''
+
+  const prompt = `The user wants to eat "${query}" for ${mealType}. Suggest 3 recipe variations.
+${prefStr}
+Target calories: ~${calories} kcal per serving.
+
+${foodPrefs}
+
+Return ONLY a JSON array:
+[
+  {
+    "name": "...",
+    "description": "one sentence",
+    "ingredients": ["...", "..."],
+    "calories": 000,
+    "protein": 00,
+    "carbs": 00,
+    "fat": 00,
+    "fiber": 0
   }
+]`
 
-  const data = await response.json()
-  const text = data.content[0].text.trim()
-  return JSON.parse(text)
+  return callClaude(prompt, 1024)
 }
