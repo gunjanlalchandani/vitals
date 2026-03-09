@@ -61,12 +61,11 @@ Return ONLY a JSON array:
   return callClaude(prompt, 1024)
 }
 
-// Generate full weekly plan with 2 options per meal
-export async function generateWeeklyPlan({ profile, targets, preferences }) {
+function buildDayPlanPrompt({ days, profile, targets, preferences }) {
   const foodPrefs = getFoodPreferencesPrompt()
   const prefStr = preferences?.length ? `Dietary preferences: ${preferences.join(', ')}.` : ''
 
-  const prompt = `Create a healthy 7-day meal plan with TWO options per meal slot.
+  return `Create a meal plan for these days: ${days.join(', ')}. TWO options per meal slot.
 
 Profile:
 - Daily calorie target: ${targets.calories} kcal
@@ -77,31 +76,22 @@ ${prefStr}
 
 ${foodPrefs}
 
-Return a JSON object with this EXACT structure (two options per meal):
-{
-  "monday": {
-    "preBreakfast": {
-      "optionA": { "dish": "...", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0 },
-      "optionB": { "dish": "...", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0 },
-      "selected": "A"
-    },
-    "breakfast": { "optionA": {...}, "optionB": {...}, "selected": "A" },
-    "postBreakfast": { "optionA": {...}, "optionB": {...}, "selected": "A" },
-    "lunch": { "optionA": {...}, "optionB": {...}, "selected": "A" },
-    "evening": { "optionA": {...}, "optionB": {...}, "selected": "A" },
-    "dinner": { "optionA": {...}, "optionB": {...}, "selected": "A" }
-  },
-  "tuesday": { ... },
-  "wednesday": { ... },
-  "thursday": { ... },
-  "friday": { ... },
-  "saturday": { ... },
-  "sunday": { ... }
-}
+Return a JSON object with ONLY these days: ${days.join(', ')}.
+Each day has 6 meals: preBreakfast, breakfast, postBreakfast, lunch, evening, dinner.
+Each meal has this structure:
+{ "optionA": { "dish": "...", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0 }, "optionB": { "dish": "...", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0 }, "selected": "A" }
 
 Return ONLY the JSON object, no other text.`
+}
 
-  return callClaude(prompt, 6000)
+// Generate full weekly plan — split into 2 requests to avoid token limits
+export async function generateWeeklyPlan({ profile, targets, preferences }) {
+  const [firstHalf, secondHalf] = await Promise.all([
+    callClaude(buildDayPlanPrompt({ days: ['monday', 'tuesday', 'wednesday', 'thursday'], profile, targets, preferences }), 8000),
+    callClaude(buildDayPlanPrompt({ days: ['friday', 'saturday', 'sunday'], profile, targets, preferences }), 6000),
+  ])
+
+  return { ...firstHalf, ...secondHalf }
 }
 
 // Search for a recipe matching user's query, biased toward their preferences
