@@ -31,13 +31,10 @@ async function callClaude(prompt, maxTokens = 2048) {
   const data = await response.json()
   const raw = data.content[0].text.trim()
 
-  // Strip markdown code fences if present
-  const jsonText = raw
-    .replace(/^```(?:json)?\s*/m, '')
-    .replace(/```\s*$/m, '')
-    .trim()
-
-  return JSON.parse(jsonText)
+  // Extract JSON by finding the outermost { } or [ ] block
+  const match = raw.match(/(\{[\s\S]*\}|\[[\s\S]*\])/)
+  if (!match) throw new Error('No JSON found in response')
+  return JSON.parse(match[0])
 }
 
 // Generate 3 recipe options for a specific meal edit
