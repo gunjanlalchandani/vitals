@@ -7,12 +7,11 @@ export const FOOD_PREFERENCES = {
   ],
 
   preBreakfast: [
-    'Mix veg omelette with haldi milk',
-    'Boiled egg with haldi milk',
-    'Fried egg with haldi milk',
-    'Yoghurt + granola',
-    'Moong dal chila with paneer',
-    'Sprouts',
+    '5-6 almonds + chia seeds',
+    'Almonds + chia seeds + green tea',
+    'Almonds + chia seeds + lemon water',
+    'Almonds + chia seeds + herbal tea',
+    'Almonds + chia seeds + black coffee',
   ],
 
   breakfast: [
@@ -119,11 +118,13 @@ Dinner options: ${FOOD_PREFERENCES.dinner.join(' | ')}
 
 Weekend treats (Sat/Sun only): ${FOOD_PREFERENCES.weekend.join(' | ')}
 
-Notes:
-- Non-veg meals (chicken, fish) are preferred at dinner
-- Lunch is typically Indian dal/sabzi based
-- Evening snacks are light and healthy
-- Saturday and Sunday can have slightly more indulgent options
-- Always include almonds + chia seeds as the morning starter
+Rules (STRICTLY follow these):
+- Pre-breakfast is ALWAYS light: almonds, chia seeds, tea, lemon water only. NO eggs, NO cooked food.
+- Tuesday and Thursday are FULLY VEGETARIAN — absolutely no chicken, fish, or any meat.
+- Non-veg meals (chicken, fish) only on Monday, Wednesday, Friday, Saturday, Sunday — and only at dinner.
+- Saturday and Sunday calorie targets are the SAME as weekdays — do not increase.
+- Lunch is typically Indian dal/sabzi based with roti or rice.
+- Evening snacks are light and healthy.
+- Always start pre-breakfast with almonds + chia seeds.
 `.trim()
 }

@@ -94,6 +94,20 @@ export async function generateWeeklyPlan({ profile, targets, preferences }) {
   return { ...firstHalf, ...secondHalf }
 }
 
+// Estimate nutrition for a dish + quantity
+export async function estimateNutrition(dish, quantity) {
+  const prompt = `Estimate the nutritional content of this food item:
+Dish: "${dish}"
+Quantity: "${quantity || '1 serving'}"
+
+Return ONLY a JSON object with these exact fields:
+{ "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0 }
+
+Use realistic Indian/common food nutrition values. All numbers should be integers.`
+
+  return callClaude(prompt, 256)
+}
+
 // Search for a recipe matching user's query, biased toward their preferences
 export async function searchRecipe({ query, mealType, calories, preferences }) {
   const foodPrefs = getFoodPreferencesPrompt()

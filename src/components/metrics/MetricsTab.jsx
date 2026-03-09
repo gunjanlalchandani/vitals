@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Plus, TrendingDown, TrendingUp, Minus } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { getMetrics, saveMetricEntry, today } from '../../utils/storage'
-import { calcBMI, bmiCategory } from '../../utils/calculations'
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
+import { getMetrics, saveMetricEntry, getAllLogsForProfile, today } from '../../utils/storage'
+import { calcBMI, bmiCategory, sumMeals } from '../../utils/calculations'
 
 const BLANK = { weight: '', waist: '', hips: '', chest: '', notes: '' }
 
@@ -63,6 +63,28 @@ export default function MetricsTab({ profile }) {
   const weightChange = latest && prev ? (latest.weight - prev.weight).toFixed(1) : null
   const bmi = latest ? calcBMI(latest.weight, profile.height) : calcBMI(profile.weight, profile.height)
   const bmiInfo = bmiCategory(parseFloat(bmi))
+
+  // Nutrient achievement from daily logs (last 7 days)
+  const allLogs = getAllLogsForProfile(profile.id)
+  const last7 = allLogs.slice(-7)
+  const targets = profile.targets || {}
+  const nutrientAchievement = last7.map(log => {
+    const totals = sumMeals(log.meals || {})
+    return {
+      date: new Date(log.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      calories: Math.round((totals.calories / (targets.calories || 1)) * 100),
+      protein: Math.round((totals.protein / (targets.protein || 1)) * 100),
+      carbs: Math.round((totals.carbs / (targets.carbs || 1)) * 100),
+      fat: Math.round((totals.fat / (targets.fat || 1)) * 100),
+    }
+  })
+
+  const avgAchievement = nutrientAchievement.length > 0 ? {
+    calories: Math.round(nutrientAchievement.reduce((s, d) => s + d.calories, 0) / nutrientAchievement.length),
+    protein: Math.round(nutrientAchievement.reduce((s, d) => s + d.protein, 0) / nutrientAchievement.length),
+    carbs: Math.round(nutrientAchievement.reduce((s, d) => s + d.carbs, 0) / nutrientAchievement.length),
+    fat: Math.round(nutrientAchievement.reduce((s, d) => s + d.fat, 0) / nutrientAchievement.length),
+  } : null
 
   const CHARTS = [
     { key: 'weight', label: 'Weight', color: '#10b981', unit: 'kg' },
@@ -163,6 +185,60 @@ export default function MetricsTab({ profile }) {
           </div>
         )}
       </div>
+
+      {/* Nutrient achievement */}
+      {avgAchievement && (
+        <div className="card space-y-4">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Nutrient Achievement (7-day avg)</div>
+          {[
+            { label: 'Calories', key: 'calories', color: 'text-orange-400', bar: 'bg-orange-500' },
+            { label: 'Protein', key: 'protein', color: 'text-purple-400', bar: 'bg-purple-500' },
+            { label: 'Carbs', key: 'carbs', color: 'text-yellow-400', bar: 'bg-yellow-500' },
+            { label: 'Fat', key: 'fat', color: 'text-blue-400', bar: 'bg-blue-500' },
+          ].map(({ label, key, color, bar }) => {
+            const pct = Math.min(100, avgAchievement[key])
+            return (
+              <div key={key}>
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="text-slate-400">{label}</span>
+                  <span className={`font-bold ${color}`}>{avgAchievement[key]}% of target</span>
+                </div>
+                <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${bar}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Daily achievement chart (last 7 days) */}
+      {nutrientAchievement.length > 1 && (
+        <div className="card space-y-3">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Daily Calorie Achievement %</div>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={nutrientAchievement}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} />
+              <YAxis tick={{ fontSize: 10, fill: '#64748b' }} domain={[0, 120]} unit="%" />
+              <Tooltip
+                contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, fontSize: 12 }}
+                formatter={(val) => [`${val}%`]}
+              />
+              <Bar dataKey="calories" radius={[6, 6, 0, 0]}>
+                {nutrientAchievement.map((entry, i) => (
+                  <Cell key={i} fill={entry.calories >= 90 && entry.calories <= 110 ? '#10b981' : entry.calories < 90 ? '#f59e0b' : '#ef4444'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="flex gap-3 text-[10px] text-slate-500">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />On target (90–110%)</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" />Under</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" />Over</span>
+          </div>
+        </div>
+      )}
 
       {/* Chart */}
       {metrics.length > 1 && (
