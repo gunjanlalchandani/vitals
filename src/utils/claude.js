@@ -29,11 +29,15 @@ async function callClaude(prompt, maxTokens = 2048) {
   }
 
   const data = await response.json()
-  const text = data.content[0].text.trim()
+  const raw = data.content[0].text.trim()
 
-  // Extract JSON even if wrapped in markdown code blocks
-  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || text.match(/(\[[\s\S]*\]|\{[\s\S]*\})/)
-  return JSON.parse(jsonMatch ? jsonMatch[1] || jsonMatch[0] : text)
+  // Strip markdown code fences if present
+  const jsonText = raw
+    .replace(/^```(?:json)?\s*/m, '')
+    .replace(/```\s*$/m, '')
+    .trim()
+
+  return JSON.parse(jsonText)
 }
 
 // Generate 3 recipe options for a specific meal edit
